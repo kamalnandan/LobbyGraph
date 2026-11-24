@@ -15,6 +15,12 @@ ORLEN, E.ON).
 | `app/` | Streamlit web app with email sign-in, served over HTTPS by Caddy |
 | `docker-compose.yml` | Runs neo4j, app and caddy; the loader runs on demand |
 
+## Topics
+
+Meetings and registrations are tagged with 16 topics (gas, hydrogen, renewables, grids, nuclear,
+emissions trading, energy markets, and more) by simple keyword rules in
+`lobbygraph/src/lobbygraph/themes.py`. Each tag keeps the words it matched and the text it came from.
+
 ## Data sources
 
 - EU Transparency Register (lobby registrations)

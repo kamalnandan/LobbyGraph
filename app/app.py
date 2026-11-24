@@ -48,6 +48,8 @@ LABELS = {
     "consultancy": "Consultancy", "hired_by": "Hired by", "paid_eur": "Paid by the group",
     "other_clients": "Other clients", "other_clients_examples": "Other clients (examples)",
     "entity": "Company", "lei": "LEI", "what_we_do": "What we do about it", "source": "Source",
+    "topic": "Topic", "topics": "Topics", "meetings": "Meetings", "evidence": "Text it came from",
+    "declared_by": "Declared in register by", "group": "Company group",
 }
 COST_COLUMNS = ("yearly_cost_eur", "association_cost_eur", "paid_eur")
 
@@ -148,9 +150,36 @@ WITH m, collect(DISTINCT r.name) AS group_registrations, collect(DISTINCT a.sour
 OPTIONAL MATCH (m)-[:HELD_BY]->(u:Unit)
 OPTIONAL MATCH (m)-[:WITH]->(o:Official)
 OPTIONAL MATCH (other:LobbyRegistration)-[:ATTENDED]->(m) WHERE NOT other.name IN group_registrations
+OPTIONAL MATCH (m)-[:ON_THEME]->(t:Theme)
 RETURN m.date AS date, coalesce(u.acronym, u.name) AS commission_unit, m.level AS level, m.subject AS subject,
-       group_registrations, collect(DISTINCT o.name) AS officials, collect(DISTINCT other.name) AS also_present, source
+       collect(DISTINCT t.name) AS topics, group_registrations, collect(DISTINCT o.name) AS officials,
+       collect(DISTINCT other.name) AS also_present, source
 ORDER BY date DESC"""
+
+Q_THEMES = "MATCH (t:Theme) RETURN t.theme_id AS id, t.name AS name ORDER BY name"
+
+Q_THEME_MEETINGS = """
+MATCH (g:Group {id: $gid})<-[:PART_OF_GROUP]-(:LegalEntity)<-[:COVERS]-(:LobbyRegistration)-[:ATTENDED]->(m:Meeting)
+WHERE m.date >= $since
+WITH DISTINCT m
+OPTIONAL MATCH (m)-[:ON_THEME]->(t:Theme)
+RETURN coalesce(t.name, 'General / no topic found') AS topic, count(DISTINCT m) AS meetings
+ORDER BY meetings DESC"""
+
+Q_THEME_DECLARED = """
+MATCH (g:Group {id: $gid})<-[:PART_OF_GROUP]-(:LegalEntity)<-[:COVERS]-(r:LobbyRegistration)-[x:ON_THEME]->(t:Theme)
+RETURN DISTINCT t.name AS topic, r.name AS registration, x.match_method AS matched_by, x.evidence AS evidence,
+       x.source_url AS source
+ORDER BY topic, registration"""
+
+Q_THEME_RANK = """
+MATCH (g:Group), (t:Theme {theme_id: $tid})
+OPTIONAL MATCH (g)<-[:PART_OF_GROUP]-(:LegalEntity)<-[:COVERS]-(:LobbyRegistration)-[:ATTENDED]->(m:Meeting)-[:ON_THEME]->(t)
+WHERE m.date >= $since
+WITH g, t, count(DISTINCT m) AS meetings
+OPTIONAL MATCH (g)<-[:PART_OF_GROUP]-(:LegalEntity)<-[:COVERS]-(r:LobbyRegistration)-[:ON_THEME]->(t)
+RETURN g.name AS group, meetings, collect(DISTINCT r.name) AS declared_by
+ORDER BY meetings DESC, group"""
 
 Q_ASSOCIATIONS = """
 MATCH (g:Group {id: $gid})<-[:PART_OF_GROUP]-(:LegalEntity)<-[:COVERS]-(r:LobbyRegistration)-[mo:MEMBER_OF]->(a:LobbyRegistration)
@@ -224,7 +253,10 @@ c4.metric(f"Commission meetings since {since:%d %b %Y}", n_meet, help="Each meet
 if ov["registrations"] > 1:
     st.caption("⚠️ Several group companies register separately. Their declared costs may overlap, so the total is an upper bound.")
 
-tabs = st.tabs(["Who lobbies", "Meetings", "Associations & memberships", "Consultancies", "Companies in the group", "Data issues"])
+tabs = st.tabs(["Who lobbies", "Meetings", "Topics", "Associations & memberships", "Consultancies",
+                "Companies in the group", "Data issues"])
+TOPIC_NOTE = ("Topics are tagged automatically with simple keyword rules on the meeting subject and on the "
+              "EU policies each registration declares. Each tag keeps the words it matched, so it can be checked.")
 
 with tabs[0]:
     st.subheader("Which group companies are registered lobbyists?")
@@ -243,18 +275,42 @@ with tabs[1]:
         with right:
             st.caption("Most-met Commission units")
             st.bar_chart(df["commission_unit"].value_counts().head(10), horizontal=True)
-    show(rows, links=["source"], lists=["group_registrations", "officials", "also_present"], height=420)
+        picked = st.multiselect("Only meetings on these topics", sorted({t for ts in df["topics"] for t in ts}),
+                                help=TOPIC_NOTE)
+        if picked:
+            rows = [r for r in rows if set(r["topics"]) & set(picked)]
+    show(rows, links=["source"], lists=["topics", "group_registrations", "officials", "also_present"], height=420)
 
 with tabs[2]:
+    st.subheader("What the group lobbies about")
+    st.caption(TOPIC_NOTE)
+    left, right = st.columns(2)
+    with left:
+        st.caption(f"Commission meetings per topic since {since:%d %b %Y} (a meeting can have several topics)")
+        tm = run(Q_THEME_MEETINGS, gid=gid, since=since_s)
+        if tm:
+            st.bar_chart(pd.DataFrame(tm).set_index("topic")["meetings"], horizontal=True)
+        else:
+            st.info("No meetings in this period.")
+    with right:
+        themes = run(Q_THEMES)
+        tnames = {t["name"]: t["id"] for t in themes}
+        tpick = st.selectbox("Compare all groups on one topic", list(tnames),
+                             index=list(tnames).index("Hydrogen") if "Hydrogen" in tnames else 0)
+        show(run(Q_THEME_RANK, tid=tnames[tpick], since=since_s), lists=["declared_by"])
+    st.caption("Topics the group's registrations declare in the EU Transparency Register")
+    show(run(Q_THEME_DECLARED, gid=gid), links=["source"])
+
+with tabs[3]:
     st.subheader("Associations, think tanks and other organisations the group belongs to")
     st.caption("Association figures are shown next to the group's own, never added to them.")
     show(run(Q_ASSOCIATIONS, gid=gid), links=["source"], lists=["member_via"])
 
-with tabs[3]:
+with tabs[4]:
     st.subheader("Consultancies the group hires, and who else hires them")
     show(run(Q_CONSULTANCIES, gid=gid), links=["source"], lists=["other_clients_examples"])
 
-with tabs[4]:
+with tabs[5]:
     st.subheader("Companies in the group")
     ents = run(Q_ENTITIES, gid=gid)
     only = st.toggle("Only companies with a lobby registration", value=False)
@@ -262,7 +318,7 @@ with tabs[4]:
         ents = [e for e in ents if e["registrations"]]
     show(ents, links=["source"], lists=["registrations"], height=480)
 
-with tabs[5]:
+with tabs[6]:
     st.subheader("Where sources disagree or data look incomplete")
     show(run(Q_ISSUES, gid=gid))
 

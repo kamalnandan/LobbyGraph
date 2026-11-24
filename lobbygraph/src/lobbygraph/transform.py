@@ -6,6 +6,7 @@ from .model import Graph, Provenance
 from .parsing import (normalise, parse_band, parse_intermediaries, parse_memberships,
                       name_variants, split_list, find_exclusions)
 from .sources import COL, REGISTER_SOURCE, REGISTER_URL
+from .themes import THEMES, tag, clean
 
 ASSOCIATION_CATEGORIES = {"Trade and business associations", "Trade unions and professional associations",
                           "Non-governmental organisations, platforms and networks and similar",
@@ -58,6 +59,8 @@ def build(cfg: dict, register: pd.DataFrame, gleif, meetings: pd.DataFrame, atte
     unresolved = []     # (registration id, kind, text, reason) -> turned into DataIssues by checks
     idx = RegisterIndex(register)
     reg_prov = lambda **kw: Provenance(source=REGISTER_SOURCE, source_url=REGISTER_URL, retrieved=run_date, **kw)
+    for tid, tname, _, _ in THEMES:       # fixed list, always present so the app can list every theme
+        g.add_node("Theme", tid, name=tname)
     gleif_prov = lambda lei, **kw: Provenance(source="GLEIF", source_url=f"https://search.gleif.org/#/record/{lei}",
                                               retrieved=gleif.get(lei)["retrieved"] if gleif.get(lei) else run_date, **kw)
 
@@ -159,6 +162,11 @@ def build(cfg: dict, register: pd.DataFrame, gleif, meetings: pd.DataFrame, atte
             if len(f) <= 120:
                 tk = g.add_node("Topic", "file:" + normalise(f), name=f, type="EU file (as written)")
                 g.add_edge("INTERESTED_IN", rk, tk, reg_prov(match_method="declared EU file, free text"))
+        # ON_THEME: keyword rules over the declared EU policies text (see themes.py)
+        for t in tag(_val(row, "files")):
+            g.add_edge("ON_THEME", rk, ("Theme", t["theme"]),
+                       reg_prov(method="derived", confidence=t["confidence"], match_method="keyword rule: " + t["matched"]),
+                       evidence=t["snippet"], field="EU Legislative proposals/policies")
 
     # ---- other clients of the consultancies our groups hire (question 11) --------------
     hired = {e.end[1] for e in g.edges if e.type == "HIRED" and not e.end[1].startswith("UNRESOLVED:")}
@@ -185,6 +193,8 @@ def build(cfg: dict, register: pd.DataFrame, gleif, meetings: pd.DataFrame, atte
     covered = {k[1] for k in g.nodes if k[0] == "LobbyRegistration" and k[1] in covered_ids}
     mine = meetings[meetings["ids"].map(lambda ids: bool(covered.intersection(ids)))]
     for _, m in mine.iterrows():
+        m = m.copy()
+        m["subject"] = clean(m["subject"])    # drop Excel line-break codes (_x000D_)
         mk = g.add_node("Meeting", m["meeting_id"], date=m["date"], location=m["location"], subject=m["subject"],
                         level=m["level"], unit=m["unit"], unit_acronym=m.get("unit_acronym"),
                         attendees=len(m["ids"]), source_rows=int(m["source_rows"]))
@@ -204,6 +214,11 @@ def build(cfg: dict, register: pd.DataFrame, gleif, meetings: pd.DataFrame, atte
         if m["subject"]:
             tk = g.add_node("Topic", "subject:" + normalise(m["subject"])[:120], name=m["subject"], type="meeting subject")
             g.add_edge("ABOUT", mk, tk, mprov)
+            for t in tag(m["subject"]):
+                g.add_edge("ON_THEME", mk, ("Theme", t["theme"]),
+                           Provenance(m["source"], source_url=m["source_url"], retrieved=run_date, method="derived",
+                                      confidence=t["confidence"], match_method="keyword rule: " + t["matched"]),
+                           evidence=t["snippet"], field="subject")
         uk = g.add_node("Unit", normalise(m["unit"]), name=m["unit"], level=m["level"], acronym=m.get("unit_acronym"))
         g.add_edge("HELD_BY", mk, uk, mprov)
     if attendance is not None and len(mine):

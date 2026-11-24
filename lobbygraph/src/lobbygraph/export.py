@@ -17,7 +17,7 @@ def _clean(v):
     return v
 
 KEYS = {"Group": "id", "LegalEntity": "lei", "LobbyRegistration": "register_id", "Meeting": "meeting_id",
-        "Official": "official_id", "Unit": "unit_id", "Topic": "topic_id", "DataIssue": "issue_id"}
+        "Official": "official_id", "Unit": "unit_id", "Topic": "topic_id", "Theme": "theme_id", "DataIssue": "issue_id"}
 
 
 def write_csv(g: Graph, out: Path, issues: list[dict]):
