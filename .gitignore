@@ -1,0 +1,16 @@
+# secrets
+.env
+*.pem
+# generated output and large source downloads
+lobbygraph/out/
+lobbygraph/data/raw/transparency_register/*
+lobbygraph/data/raw/meetings/*
+!lobbygraph/data/raw/**/.keep
+dumps/
+*.pkl
+*.xls
+*.xlsx
+# python
+__pycache__/
+*.pyc
+.venv/

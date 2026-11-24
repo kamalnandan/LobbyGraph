@@ -1,0 +1,8 @@
+pandas>=2.0
+openpyxl>=3.1
+xlrd>=2.0
+pyyaml>=6.0
+requests>=2.31
+neo4j>=5.20
+azure-identity>=1.17
+azure-storage-blob>=12.20

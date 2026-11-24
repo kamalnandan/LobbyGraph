@@ -1,0 +1,103 @@
+# PoC groups: energy sector (EU). Group membership is DERIVED from GLEIF
+# (entities whose ultimate accounting parent is the group parent);
+# the lines below only seed the run and record manual decisions.
+groups:
+  - id: G1
+    name: TotalEnergies
+    sector: Energy
+    subsector: Oil, gas and renewables
+    parent_lei: 529900S21EQ1BO4ESM68        # TotalEnergies SE (Courbevoie)
+  - id: G2
+    name: EDF
+    sector: Energy
+    subsector: Electricity utility
+    parent_lei: 549300X3UK4GG3FNMO06        # Electricite de France (Paris)
+  - id: G3
+    name: Siemens Energy
+    sector: Energy
+    subsector: Energy equipment
+    parent_lei: 5299005CHJZ14D4FDJ62        # Siemens Energy AG (Munich)
+  - id: G4
+    name: ENGIE
+    sector: Energy
+    subsector: Gas and electricity utility
+    parent_lei: LAXUQCHT4FH58LRZDY46        # ENGIE SA (Courbevoie)
+  - id: G5
+    name: Eni
+    sector: Energy
+    subsector: Oil, gas and renewables
+    parent_lei: BUCRF72VH5RBN7X3VL35        # ENI S.P.A. (Rome)
+  - id: G6
+    name: Enel
+    sector: Energy
+    subsector: Electricity utility
+    parent_lei: WOCMU6HCI0OJWNPRZS33        # ENEL S.P.A. (Rome)
+  - id: G7
+    name: Iberdrola
+    sector: Energy
+    subsector: Electricity utility
+    parent_lei: 5QK37QC7NWOJ8D7WVQ45        # IBERDROLA SA (Bilbao)
+  - id: G8
+    name: RWE
+    sector: Energy
+    subsector: Electricity generation
+    parent_lei: 529900GB7KCA94ACC940        # RWE AG (Essen)
+  - id: G9
+    name: ORLEN
+    sector: Energy
+    subsector: Oil, gas and refining
+    parent_lei: 259400VVMM70CQREJT74        # ORLEN S.A. (Plock)
+  - id: G10
+    name: E.ON
+    sector: Energy
+    subsector: Energy networks and retail
+    parent_lei: Q9MAIUP40P25UFBFG033        # E.ON SE (Essen)
+
+# Transparency Register entries and the legal entity each one speaks for.
+# Checked on name and country; subsidiaries confirmed in GLEIF (ultimate parent = EDF) on 18 Nov 2026.
+registrations:
+  - register_id: 1849405799-88              # TotalEnergies SE
+    lei: 529900S21EQ1BO4ESM68
+  - register_id: 39966101835-69             # ELECTRICITE DE FRANCE
+    lei: 549300X3UK4GG3FNMO06
+  - register_id: 401111262-07               # Edison Spa (EDF group, Italy)
+    lei: 529900WS2E20BA5J4L49
+  - register_id: 871819893436-61            # Framatome SAS (EDF group)
+    lei: 9695008O5IIXK0UGWJ07
+  - register_id: 68134637922-07             # ENEDIS (EDF group, distribution grid)
+    lei: 96950025GZBH9CICZE51
+  - register_id: 669359510572-76            # RTE (transmission grid; NOT consolidated by EDF per GLEIF)
+    lei: 969500JRJW0K2ET1UP76
+  - register_id: 974875639237-65            # Siemens Energy AG
+    lei: 5299005CHJZ14D4FDJ62
+  # Added 20 Nov 2026; checked on name and city; subsidiaries confirmed in GLEIF (ultimate parent).
+  - register_id: 90947457424-20             # ENGIE
+    lei: LAXUQCHT4FH58LRZDY46
+  - register_id: 470504137940-01            # Elengy (LNG terminals; ENGIE group via GRTgaz)
+    lei: 969500L8Q7K6M0V0ZD75
+  - register_id: 99578067285-35             # Eni S.p.A.
+    lei: BUCRF72VH5RBN7X3VL35
+  - register_id: 6256831207-27              # ENEL SpA
+    lei: WOCMU6HCI0OJWNPRZS33
+  - register_id: 47504237466-74             # Endesa (Enel group, Spain)
+    lei: 549300LHK07F2CHV4X31
+  - register_id: 41816938101-07             # IBERDROLA
+    lei: 5QK37QC7NWOJ8D7WVQ45
+  - register_id: 77608353460-77             # RWE AG
+    lei: 529900GB7KCA94ACC940
+  - register_id: 105450620110-21            # ORLEN S.A.
+    lei: 259400VVMM70CQREJT74
+  - register_id: 72760517350-57             # E.ON SE
+    lei: Q9MAIUP40P25UFBFG033
+
+# Stakes without control (not counted in group totals). Percentage to verify.
+stakes:
+  - holder_lei: 549300X3UK4GG3FNMO06
+    target_lei: 969500JRJW0K2ET1UP76
+    percentage: null
+    evidence: "EDF is linked to RTE, but GLEIF reports that no parent consolidates RTE (reporting exception)"
+
+# Left out on purpose (see data issues): EDF Renewables Polska (5531151106270-73) is not confirmed in GLEIF.
+# Left out on purpose: Enel Viento S.L.U. (7433994106653-54) is a small independent Spanish developer,
+#   NOT part of the Enel group (GLEIF reports no parent; register text describes its own board). Name look-alike.
+# Not in a group: Saipem (Eni holds a minority stake), Snam (no longer Eni-controlled), Uniper (not E.ON).
